@@ -240,6 +240,7 @@ def parseheader(h=None,comments=None):
   EQUINOX  = gethe(h,'EQUINOX')
   EXPT     = gethf(h,'EXPT')
   EXPTIME  = gethf(h,'EXPTIME')
+  EXPOSURE = gethf(h,'EXPOSURE')
   HJD      = gethf(h,'HJD')  
   ITIME    = gethf(h,'ITIME')
   JD       = gethf(h,'JD')
@@ -359,12 +360,12 @@ def parseheader(h=None,comments=None):
   if TM_START:
     tm,c=gettime(TM_START)
     if tm:
-      times.append((tm,"TM_START",c*100))
+      times.append((tm,"TM_START",c*150))
 
   if TMmSTART:
     tm,c=gettime(TMmSTART)
     if tm:
-      times.append((tm,"TM-START",c*100))
+      times.append((tm,"TM-START",c*150))
 
   if UTSHUT:
     tm,c=gettime(UTSHUT)
@@ -501,6 +502,14 @@ def parseheader(h=None,comments=None):
         exptimes.append((eq,"EXPTIME",100))
     else:
       exptimes.append((EXPTIME,"EXPTIME",100))
+
+  if EXPOSURE:
+    if type(EXPOSURE)==type(""):
+      et=getnumber(EXPOSURE)
+      if et:
+        exptimes.append((eq,"EXPOSURE",100))
+    else:
+      exptimes.append((EXPOSURE,"EXPOSURE",100))
 
   if ITIME:
     if type(ITIME)==type(""):
