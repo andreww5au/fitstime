@@ -1,4 +1,6 @@
 
+version = "$Revision$"
+
 import coords
 
 import re
@@ -17,7 +19,7 @@ def ptuple(t,sp=' '):
   return string.join(map(str,map(int,t)),sp)
 
 
-def getdate(s=""):
+def getdate(s="", yearguess=None):
   """Attempt to parse the given string as a date. The format is unknown,
      but it's assumed that the broken American m/d/y isn't a possibility.
      It attempts to distinguish between d/m/y and y/m/d using the values,
@@ -40,7 +42,7 @@ def getdate(s=""):
     for i in range(12):
       if string.find(s, months[i])>=0:
         month=i+1
-    assert month, "Only two numbers and month name not found in '"+s+"'"
+    assert month, "Only two numbers, and month name not found in '"+s+"'"
     nums=[nums[0],month,nums[1]]
     monthname=1
   else:
@@ -54,8 +56,24 @@ def getdate(s=""):
   month=int(nums[1])
   assert (month>=1) and (month<=12), "Month invalid in '"+s+"'"
 
-  if nums[0]>31:
-    #If first number is >31, it must be a year, so the third must be a day
+  if nums[0]>100:
+    #If first number is >100, it must be a 4-digit-year, so the third must be a day
+    assert (nums[2]>=1) and (nums[2]<=mlen[month-1]) and (nums[0]>1980) and (nums[0]<2050), "YMD, Day invalid in '"+s+"'"
+    day=nums[2]
+    year=nums[0]
+    return (year,month,day),1       #confident it's YMD
+
+  if nums[2]>100:
+    #If third number is >100, it must be a 4-digit-year, so the first must be a day
+    assert (nums[0]>=1) and (nums[0]<=mlen[month-1]) and (nums[2]>1980) and (nums[2]<2050), "DMY, Day invalid in '"+s+"'"
+    day=nums[0]
+    year=nums[2]
+    return (year,month,day),1       #confident it's DMY
+
+  #OK, at this point all three numbers are less than or equal to 100
+
+  if nums[0]>50:
+    #If first number is >50, it must be a pre-2000 2-digit-year, so the third must be a day
     assert (nums[2] >= 1) and (nums[2] <= mlen[month-1]), "YMD, Day invalid in '"+s+"'"
     day=nums[2]
     if nums[0]<100:
@@ -64,8 +82,8 @@ def getdate(s=""):
       year=nums[0]
     return (year,month,day),1       #confident it's YMD
 
-  if nums[2]>31:
-    #If third number is >31, it must be a year, so the first must be a day
+  if nums[2]>50:
+    #If third number is >50, it must be a pre-2000 2-digit-year, so the first must be a day
     assert (nums[0] >= 1) and (nums[0] <= mlen[month-1]), "DMY, Day invalid in '"+s+"'"
     day=nums[0]
     if nums[2]<100:
@@ -74,14 +92,29 @@ def getdate(s=""):
       year=nums[2]
     return (year,month,day),1       #confident it's DMY
 
+  #At this point, all numbers are <=50, so could conceivably be in either order. Try yearguess first
+
+  if yearguess:
+    yg = str(yearguess)[-2:]
+    if (nums[0] == yearguess) or (nums[0] == yg):
+      assert (nums[2] >= 1) and (nums[2] <= mlen[month-1]), "YMD, Day invalid in '"+s+"'"
+      year = yearguess
+      day = nums[2]   
+      return (year,month,day),1       #confident it's YMD
+    elif (nums[2] == yearguess) or (nums[2] == yg):
+      assert (nums[0] >= 1) and (nums[0] <= mlen[month-1]), "DMY, Day invalid in '"+s+"'"
+      year = yearguess
+      day = nums[0]      
+      return (year,month,day),1       #confident it's DMY
+
   #First and last number are both valid days, so we hope the LARGER one is the day
 
   if ( (nums[2]>nums[0]) and (not monthname) ) or (dateorder=='YMD'):
     assert (nums[2] >= 1) and (nums[2] <= mlen[month-1]), "guess YMD, Day invalid in '"+s+"'"
     day=nums[2]
     year=nums[0]+2000
-    if (day>5) or (dateorder=='YMD'):
-      return (year,month,day),0.5       #Relatively sure since year probably isn't >2005
+    if dateorder == 'YMD':
+      return (year,month,day),0.5       #Relatively sure since we have a specified date order
     else:
       print "Warning - guessing at YMD order for '"+s+"'"
       return (year,month,day),0       #Only guess it's YMD
@@ -89,8 +122,8 @@ def getdate(s=""):
     assert (nums[0] >= 1) and (nums[0] <= mlen[month-1]), "guess DMY, Day invalid in '"+s+"'"
     day=nums[0]
     year=nums[2]+2000
-    if (day>5) or (dateorder=='DMY'):
-      return (year,month,day),0.5       #Relatively sure since year probably isn't >2005
+    if dateorder == 'DMY':
+      return (year,month,day),0.5       #Relatively sure since we have a specified date order
     else:
       print "Warning - guessing at DMY order for '"+s+"'"
       return (year,month,day),0       #Only guess it's DMY
@@ -213,7 +246,7 @@ def gethe(h,name):
   return v
 
 
-def parseheader(h=None,comments=None):
+def parseheader(h=None,comments=None, yearguess=None):
   """
      parseheader returns lists of all values in each category (all dates, all ras, etc). Each list
      is composed of tuples, being (value, field, confidence), where value is the number, field is 
@@ -293,10 +326,10 @@ def parseheader(h=None,comments=None):
 #Dates, and time fields merged with date values
 
   if DATEmOBSd:
-    date,c = getdate(DATEmOBSd)
+    date,c = getdate(DATEmOBSd, yearguess)
     dates.append((date,"DATE-OBSd",c*100))
   elif DATEmOBS:
-    date,c = getdate(DATEmOBS)
+    date,c = getdate(DATEmOBS, yearguess)
     dates.append((date,"DATE-OBS",c*100))
     if (date[2]-int(date[2]))>1e-9:       #Fractional day number
       tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
@@ -306,10 +339,10 @@ def parseheader(h=None,comments=None):
 
 #Note that DATE and TIME fields are often only the file creation date/time, not image acquisition
   if DATEd:
-    date,c = getdate(DATEd)
+    date,c = getdate(DATEd, yearguess)
     dates.append((date,"DATEd",c*20))
   elif DATE:
-    date,c = getdate(DATE)
+    date,c = getdate(DATE, yearguess)
     dates.append((date,"DATE",c*20))
     if (date[2]-int(date[2]))>1e-9:       #Fractional day number
       tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
@@ -317,7 +350,7 @@ def parseheader(h=None,comments=None):
       times.append( ((h,m,s),"DATE",c*20) )
 
   if UTDATE:
-    date,c = getdate(UTDATE)
+    date,c = getdate(UTDATE, yearguess)
     dates.append((date,"UTDATE",c*120))
     if (date[2]-int(date[2]))>1e-9:       #Fractional day number
       tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
@@ -328,7 +361,7 @@ def parseheader(h=None,comments=None):
     epy=None
     if (type(EPOCH)==type("")):
       try:
-        date,c = getdate(EPOCH)
+        date,c = getdate(EPOCH, yearguess)
         dates.append((date,"EPOCH",c*50))
         if (date[2]-int(date[2]))>1e-9:       #Fractional day number
           tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
@@ -499,7 +532,7 @@ def parseheader(h=None,comments=None):
     if type(EXPTIME)==type(""):
       et=getnumber(EXPTIME)
       if et:
-        exptimes.append((eq,"EXPTIME",100))
+        exptimes.append((et,"EXPTIME",100))
     else:
       exptimes.append((EXPTIME,"EXPTIME",100))
 
@@ -507,7 +540,7 @@ def parseheader(h=None,comments=None):
     if type(EXPOSURE)==type(""):
       et=getnumber(EXPOSURE)
       if et:
-        exptimes.append((eq,"EXPOSURE",100))
+        exptimes.append((et,"EXPOSURE",100))
     else:
       exptimes.append((EXPOSURE,"EXPOSURE",100))
 
@@ -515,7 +548,7 @@ def parseheader(h=None,comments=None):
     if type(ITIME)==type(""):
       et=getnumber(ITIME)
       if et:
-        exptimes.append((eq,"ITIME",90))
+        exptimes.append((et,"ITIME",90))
     else:
       exptimes.append((ITIME,"ITIME",90))
 
