@@ -64,7 +64,6 @@ for ar in args:
     force = 1
   elif ar == '-n' or ar == '-N':
     nowrite = 1
-    verbose = 1
   else:
     files.append(ar)
 
@@ -81,9 +80,10 @@ for fname in files:
     continue
 
   try:
-    t,s,hf = fitstime.findtime(fimage=f, verbose=1, allfields=1)
+    vt,vs,hf = fitstime.findtime(fimage=f, verbose=1, allfields=1)
+    t,s = fitstime.findtime(fimage=f, verbose=0, allfields=0)
   except:
-    print "Error determining time in file " + fname
+    print "Error determining time in file " + fname + "\n" + s
     sys.excepthook(*sys.exc_info())
     continue
 
@@ -99,14 +99,22 @@ for fname in files:
     f.comments['PRA'] = "'=" + rafield + ": " + racom
     f.headers['PDEC'] = `dec`
     f.comments['PDEC'] = "'=" + decfield + ": " + deccom
-    f.histlog(s)
+    f.histlog(vs)
 
     if verbose:    
-      print "File: "+fname
+      if s:
+        print "File: " + fname + "Had errors/warnings:"
+        print s
+      else:
+        print "File: "+fname
       print "PHJDMID = %19s / %-48s" % (f.headers['PHJDMID'], f.comments['PHJDMID'])
       print "PEXP    = %19s / %-48s" % (f.headers['PEXP'], f.comments['PEXP'])
       print "PRA     = %19s / %-48s" % (f.headers['PRA'], f.comments['PRA'])
       print "PDEC    = %19s / %-48s" % (f.headers['PDEC'], f.comments['PDEC'])
+    else:
+      if s:
+        print "File: " + fname + "Had errors/warnings:"
+        print s
 
     if not nowrite:
       f.save(fname)
