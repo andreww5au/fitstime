@@ -36,13 +36,20 @@ HISTORY comment block in the header.
 If the -n flag is given, the files will NOT be modified.
 Instead, the new header keys will be printed to standard out.
 
+The -v flag gives verbose output, listing the header keys 
+written instead of running silently (when the -v or -n flags
+are not given, ANY output implies a warning or error). 
+
+Note that '-n' (no-write) implies verbose output, but the FITS
+files are not changed. '-v' turns on verbose outout explicitly,
+while the given files are being updated.
+
 If the '-f' flag is given, the header fields will be written
 to the FITS file even if the image already has PLANET timing
-headers. Values will be updated, the history will be appended.
-
-The '-f' flag is for verbose output as it processes the files,
-without this the program will produce NO output unless errors
-or warnings are encountered.
+headers. Values will be updated, the history will be appended. 
+If the '-n' (no-write) flag is given in combination with '-f' 
+(force) then the files will be processed and times calculated,
+but new data will NOT be written back to the FITS files.
 """
 
 args = sys.argv[1:]
@@ -64,6 +71,7 @@ for ar in args:
     force = 1
   elif ar == '-n' or ar == '-N':
     nowrite = 1
+    verbose = 1
   else:
     files.append(ar)
 
@@ -116,12 +124,15 @@ for fname in files:
         print "File: " + fname + "Had errors/warnings:"
         print s
 
-    if not nowrite:
-      f.save(fname)
-      if verbose:
-        print "Saved.\n"
+    if f.data:
+      if not nowrite:
+        f.save(fname)
+        if verbose:
+          print fname + " Saved.\n"
+      else:
+        print fname + " NOT saved.\n"
     else:
-      print "NOT saved.\n"
+      print "File: " + fname + " had no readable data section after the header. NOT saved.\n"
   else:        #No time value returned
     print "ERROR, no time value returned"
 
