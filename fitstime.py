@@ -86,7 +86,7 @@ def getra(ras, verbose=1):
     return raval,rafield,outstring
   else:
     if verbose:
-      outstring += "No RA field in header, assuming 18h for HJD_Calc\n"
+      outstring += "No RA field, assume 18h for HJD_Calc\n"
     return 18.0, "guess", outstring
 
 
@@ -103,7 +103,7 @@ def getdec(decs, verbose=1):
     return decval,decfield,outstring
   else:
     if verbose:
-      outstring += "No DEC field in header, assuming -28d for HJD_Calcu\n"
+      outstring += "No DEC field, assume -28d for HJD_Calc\n"
     return -28.0,"guess",outstring
 
 
