@@ -1,7 +1,8 @@
 #!/usr/bin/python
 
+version = "$Revision$"
+
 import sys
-import string
 
 import parseing
 import fits
@@ -85,7 +86,7 @@ def getra(ras, verbose=1):
     return raval,rafield,outstring
   else:
     if verbose:
-      outstring += "No detected RA field in header, assuming 18h for HJD calculations\n"
+      outstring += "No RA field in header, assuming 18h for HJD_Calc\n"
     return 18.0, "guess", outstring
 
 
@@ -102,7 +103,7 @@ def getdec(decs, verbose=1):
     return decval,decfield,outstring
   else:
     if verbose:
-      outstring += "No detected DEC field in header, assuming -28d for HJD calculations\n"
+      outstring += "No DEC field in header, assuming -28d for HJD_Calcu\n"
     return -28.0,"guess",outstring
 
 
@@ -183,16 +184,48 @@ def getequinox(equinoxes, verbose=1):
     if verbose:
       outstring += "No equinox or epoch of coordinates in FITS header, assuming 2000\n"
     return 2000.0,"guess",outstring
+
+
+def yearfromheaders(hdic=None):
+  """Parse other header fields (JD's, object name, whatever) to try and guess the year, so
+     that broken 2-digit years in dates can be distinguished from day numbers.
+  """
+  jdl = []
+  for field in ['JD', 'MJD', 'MJD-OBS', 'HJD', 'LJD']:
+    try:
+      val = float(hdic[field])
+      if val < 2000000:
+        val = val + 2400000
+      jdl.append(val)
+    except:
+      continue
+  if len(jdl) == 0:
+    return None
+
+  jdl.sort()
+  jd = jdl[(len(jdl)-1) // 2]     #Take the middle value
+
+  y,m,d = coords.caldate(jd)
+  return y
+    
   
 
-def findtime(fname='', fimage=None, verbose=1):
+class HeaderFields:
+  pass          #An instance of this is used to store the header fields sorted by group.
+
+
+def findtime(fname='', fimage=None, verbose=1, allfields=0):
   try:
     if not fimage:
       f = fits.FITS(fname,'h')
     else:
       f = fimage
+
+    yearguess = yearfromheaders(f.headers)    #Parse other header fields for year to break 2-digit-year degeneracy
     outstring = ''
-    dates,times,jds,hjds,ras,decs,equinoxes,exptimes = parseing.parseheader(f.headers,f.comments)
+    hf = HeaderFields()
+    (hf.dates,hf.times,hf.jds,hf.hjds,
+     hf.ras,hf.decs,hf.equinoxes,hf.exptimes) = parseing.parseheader(f.headers, f.comments, yearguess)
 
     #parseheader returns lists of all values in each category (all dates, all ras, etc). Each list
     #is composed of tuples, being (value, field, confidence), where value is the number, field is 
@@ -203,18 +236,22 @@ def findtime(fname='', fimage=None, verbose=1):
     print "#Error opening or parseing FITS headers in file: "+fname
     sys.excepthook(*sys.exc_info())
     print
-    return None,"#Error opening or parseing FITS headers in file: "+fname+"\n"
+    if allfields:
+      return None,"#Error opening or parseing FITS headers in file: "+fname+"\n", None
+    else:
+      return None,"#Error opening or parseing FITS headers in file: "+fname+"\n"
 
-  if verbose:
+  if verbose and fname:
     outstring += "\nFinding time in: "+fname
 
-  fdate,fdatefield,outstring = getdate(dates, verbose=verbose)
-  ftime,ftimefield,outstring = gettime(times, verbose=verbose)
-  fjd,fjdfield,outstring = getjd(jds+hjds, verbose=verbose)        #Grab best value as an initial guess if no date
-  fra,frafield,outstring = getra(ras, verbose=verbose)
-  fdec,fdecfield,outstring = getdec(decs, verbose=verbose)
-  fequinox,fequinoxfield,outstring = getequinox(equinoxes, verbose=verbose)
-  fexptime,fexptimefield,outstring = getexptime(exptimes, verbose=verbose)
+  fdate,fdatefield,os1 = getdate(hf.dates, verbose=verbose)
+  ftime,ftimefield,os2 = gettime(hf.times, verbose=verbose)
+  fjd,fjdfield,os3 = getjd(hf.jds+hf.hjds, verbose=verbose)    
+  fra,frafield,os4 = getra(hf.ras, verbose=verbose)
+  fdec,fdecfield,os5 = getdec(hf.decs, verbose=verbose)
+  fequinox,fequinoxfield,os6 = getequinox(hf.equinoxes, verbose=verbose)
+  fexptime,fexptimefield,os7 = getexptime(hf.exptimes, verbose=verbose)
+  outstring += "".join([os1,os2,os3,os4,os5,os6,os7])
 
   #Above calls extract the 'best' value in each category, by sorting based on confidence. If there is
   #more than one value for a category, compare the best and second best to check consistency. If there's
@@ -236,7 +273,7 @@ def findtime(fname='', fimage=None, verbose=1):
     chjd = coords.hjd(jd=cjd, ra=fra*15.0, dec=fdec)
     hdelta = chjd - cjd
     chjd = chjd + edelta
-    hjds.insert(0,(chjd,"HJD_Calc",200))
+    hf.hjds.insert(0,(chjd,"HJD_Calc",200))
     chjdfield = "(" + fdatefield + " & " + ftimefield + " + Hel.Corr. + Exptime/2)"
   elif fjd:
     ghjd = coords.hjd(jd=fjd, ra=fra*15.0, dec=fdec)
@@ -245,7 +282,10 @@ def findtime(fname='', fimage=None, verbose=1):
     if verbose:
       outstring += "No date and time, or any form of JD field. No idea how to find the time for this image...\n"
     chjdfield = "(no data)"
-    return None, outstring
+    if allfields:
+      return None, outstring, hf
+    else:
+      return None, outstring
 
 
   if (abs(hdelta<1e-4) or (edelta<1e-4)) and verbose:
@@ -263,7 +303,7 @@ def findtime(fname='', fimage=None, verbose=1):
   mdl = [(-0.5," -0.5"), (0.0,""), (+0.5," +0.5")]
 
   jdict = {}
-  for item in jds + hjds:
+  for item in hf.jds + hf.hjds:
     jdict[item[1]] = item[0]
 
   if not verbose:
@@ -272,7 +312,10 @@ def findtime(fname='', fimage=None, verbose=1):
     except KeyError:         #The base field isn't available
       return None, outstring + "Invalid base field specified\n"
     out = out + hcorr*hdelta + ecorr*edelta + mcorr
-    return out, outstring
+    if allfields:
+      return out, outstring, hf
+    else:
+      return out, outstring
 
   jlist = jdict.keys()
   jlist.sort()
@@ -306,7 +349,10 @@ def findtime(fname='', fimage=None, verbose=1):
   except KeyError:         #The base field isn't available
     return None, outstring + "Invalid base field specified\n"
   out = out + hcorr*hdelta + ecorr*edelta + mcorr
-  return out, outstring
+  if allfields:
+    return out, outstring, hf
+  else:
+    return out, outstring
 
 
 
@@ -340,7 +386,7 @@ if __name__ == '__main__':
       ac=ar[1:]
       if not ac:
         sys.exit("Invalid option '=', must specify a field name after the '='")
-      ac=string.upper(ac)
+      ac = ac.upper()
       if ac=='HJD_CALC':
         basefield='HJD_Calc'
       elif ac=='HJD' or ac=='JD' or ac=='MJD' or ac=='MJD-OBS':
@@ -352,10 +398,10 @@ if __name__ == '__main__':
       ac=ar[1:]
       if not ac:
         break             #If we're passed a lone + or - arg, treat rest of command line as files
-      ac=string.upper(ac)
-      if string.find(ac,'HEL')>-1:
+      ac = ac.upper()
+      if ac.find('HEL') > -1:
         hcorr=scorr
-      elif string.find(ac,'EXP')>-1:
+      elif ac.find('EXP') > -1:
         ecorr=scorr
       else:
         try:
