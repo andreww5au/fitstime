@@ -7,8 +7,13 @@ import sys
 import fits
 import fitstime
 
-verstring = "fitstime:"+version+",parseing:"+fitstime.parseing.version+",fits:"+fits.version+",fitstime:"+fitstime.version
-print verstring
+vlist = (version.split(' ')[1].strip(), 
+         fitstime.parseing.version.split(' ')[1].strip(),
+	 fits.version.split(' ')[1].strip(),
+	 fitstime.coords.version.split(' ')[1].strip(),
+	 fitstime.version.split(' ')[1].strip())
+
+verstring = "fixtime:" +vlist[0] + " Libs:" + "/".join(vlist)
 
 sys.stderr = sys.stdin
 
@@ -87,7 +92,7 @@ for fname in files:
     ra, rafield, racom = fitstime.getra(hf.ras, verbose=1)
     dec, decfield, deccom = fitstime.getdec(hf.decs, verbose=1)
     f.headers['PHJDMID'] = `t`
-    f.comments['PHJDMID'] = "'fitstime v1.0.5, see history for details'"
+    f.comments['PHJDMID'] = "'"+verstring+"'"
     f.headers['PEXP'] = `exptime`
     f.comments['PEXP'] = "'=" + efield + ": " + ecom
     f.headers['PRA'] = `ra`
