@@ -66,7 +66,7 @@ except ImportError:
 hfirst=['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','EXTEND','COMMENT',
         'CREATOR','OBSERVAT','TELESCOP','LATITUDE','LONGITUD','INSTRUME',
         'DETECTOR','INSTID','OBSERVER','OBJECT','EXPTIME']
-hlast=['CCDTEMP','GAIN','FILENAME','BSCALE','BZERO','HISTORY','END']
+hlast=['CCDTEMP','GAIN','FILENAME','BSCALE','BZERO','HIERARCH','HISTORY','END']
 
 
 
@@ -288,7 +288,7 @@ class FITS:
   def histlog(self,str):
     """Adds a HISTORY line containing 'str' to the image.
        Used to log actions performed on an image. A 20 character time stamp
-       is added as a prefix, and the result is split across up to three cards
+       is added as a prefix, and the result is split across up to 7 cards
        if it is too long to fit in one. Any extra text is truncated.
     """
     vlist=(time.strftime("%Y/%m/%d %H:%M:%S ",time.gmtime(time.time()) )+str).split('\n')
@@ -344,20 +344,26 @@ def _parseline(ob,line):
     return 1
   key=string.strip(line[:8])   #First 8 chars with whitespace stripped
   value=string.strip(line[9:]) #Rest of line with whitespace stripped
+  evalue = string.strip(line[8:])  #Includes col 9, for history, comment
   comment=''                   #Empty comment field for now
 
   if key == 'COMMENT':    #Handle case where comment takes up the whole line
     if ob.comments.has_key('COMMENT'):
-      ob.comments['COMMENT']=ob.comments['COMMENT']+'\n'+value
+      ob.comments['COMMENT']=ob.comments['COMMENT']+'\n'+evalue
     else:
       ob.comments['COMMENT']=value
   elif key == 'HISTORY':  #Handle 'HISTORY' like 'COMMENT'
     if ob.comments.has_key('HISTORY'):
-      ob.comments['HISTORY']=ob.comments['HISTORY']+'\n'+value
+      ob.comments['HISTORY']=ob.comments['HISTORY']+'\n'+evalue
     else:
       ob.comments['HISTORY']=value
+  elif key == 'HIERARCH':  #Handle 'HIERARCH' like 'COMMENT'
+    if ob.comments.has_key('HIERARCH'):
+      ob.comments['HIERARCH'] = ob.comments['HIERARCH'] + '\n' + value
+    else:
+      ob.comments['HIERARCH'] = value
 
-#For both HISTORY and COMMENT, build up one value, with newlines seperating
+#For HISTORY, HIERARCH and COMMENT, build up one value, with newlines seperating
 #each line in the FITS file. Otherwise, it's one dictionary entry per line
 
   elif key == 'END':
@@ -418,11 +424,17 @@ def _fh(fim=None, h=''):
   try:
     if h=='END':
       return string.ljust('END',80)
-    elif h=='COMMENT' or h=='HISTORY':
+    elif h == 'COMMENT' or h == 'HISTORY':
       lines=string.split(fim.comments[h],'\n')
       out=''
       for l in lines:
-        out=out+string.ljust(string.ljust(h,10)+l, 80)
+        out = out + string.ljust(string.ljust(h,8)+l, 80)[:80]
+      return out
+    elif h == 'HIERARCH':
+      lines=string.split(fim.comments[h],'\n')
+      out=''
+      for l in lines:
+        out = out + string.ljust('HIERARCH '+l, 80)[:80]
       return out
     elif h not in fim.headers.keys():
       return ''
@@ -430,8 +442,8 @@ def _fh(fim=None, h=''):
       v=fim.headers[h]
       v=" ".join(v.split('\n'))
       if v=="":
-        return string.ljust(h,80)
-      out=string.ljust(h,8)+'= '
+        return string.ljust(h,80)[:80]
+      out = string.ljust(h,8)[:8] + '= '
       if v[0]=='"' or v[0]=="'":
         out=out+string.ljust(v,20)
       else:
