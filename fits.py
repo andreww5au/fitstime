@@ -126,7 +126,7 @@ class FITS:
           self.comments['HISTORY']=''            #Add a blank HISTORY card
 
         if GotNum:         #If we've got Numeric, load the data section too.
-          self.file.seek(2880*(self.file.tell()/2880+1))
+          self.file.seek(2880*((self.file.tell()-1)/2880+1))
           bp=int(self.headers['BITPIX'])
           if bp==16:
             type=Int16
@@ -139,16 +139,20 @@ class FITS:
             return
 
           shape=[]
-          len=1
+          flen=1
           for i in range(int(self.headers['NAXIS'])):
             shape.append(int(self.headers['NAXIS'+`i+1`]))
-            len=len*shape[-1]
+            flen=flen*shape[-1]
           if type==Int16:
-            len=len*2   #Two bytes per element
+            flen=flen*2   #Two bytes per element
           else:
-            len=len*4   #Four bytes per element
+            flen=flen*4   #Four bytes per element
           shape.reverse()  #take axes in opposite order
-          self.data=fromstring(self.file.read(len),type).byteswapped().astype(Float64)
+          fraw = self.file.read(flen)
+          if len(fraw) <> flen:
+            print "Expected %d bytes, read %d bytes." % (flen, len(fraw))
+            return
+          self.data=fromstring(fraw,type).byteswapped().astype(Float64)
           self.data.shape=tuple(shape)
 
           if self.headers.has_key('BSCALE') and self.headers.has_key('BZERO'):
@@ -157,7 +161,7 @@ class FITS:
             multiply(self.data,bscale,self.data)
             add(self.data,bzero,self.data)
         else:
-          self.file.seek(2880*(self.file.tell()/2880+1))
+          self.file.seek(2880*((self.file.tell()-1)/2880+1))
           self.data = self.file.read()
 
         self.file.close()
@@ -272,9 +276,9 @@ class FITS:
     for h in hlast:             #Write the final header cards
       f.write(_fh(self, h))
     if bitpix <> 0:             #Write the data section unless bitpix is 0
-      f.write(' ' * (2880*(f.tell()/2880+1)-f.tell()) )    #Pad the header block
+      f.write(' ' * (2880*((f.tell()-1)/2880+1)-f.tell()) )    #Pad the header block
       f.write(tmpdata.astype(type).byteswapped().tostring())
-      f.write('\0' * (2880*(f.tell()/2880+1)-f.tell()) )    #Pad the data
+      f.write('\0' * (2880*((f.tell()-1)/2880+1)-f.tell()) )    #Pad the data
     f.close()
     return 1
 
