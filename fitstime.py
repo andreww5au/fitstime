@@ -141,10 +141,6 @@ def gettime(times, dates, verbose=1):
       t2 = times[1][0][0]*3600 + times[1][0][1]*60 + times[1][0][2]  #in seconds
       if ((t1-t2) > 10) and (times[1][2]>0):       #If times differ by >10sec, and confidence>0
         outstring += timefield+" and "+times[1][1]+" disagree, using "+timefield+"="+parseing.ptuple(timeval,':') + '\n'
-        if times[1][1] == "DATEt":
-          for d in dates:
-            if d[1] == "DATEd":
-              d[2] = -d[2]
     return timeval,timefield,outstring
   else:
     if verbose:
@@ -328,11 +324,15 @@ def findtime(fname='', fimage=None, verbose=1, allfields=0):
   #store the match key names, a string specifying which offsets were used, and and error, in days.
 
   matches = {}
+  clashes = {}
   for akey in jlist:
     matches[akey] = {}
+    clashes[akey] = []
     for bkey in jlist[jlist.index(akey)+1:]:
       ajd = jdict[akey]
       bjd = jdict[bkey]
+      if abs(ajd-bjd)>1:     #Two JD values differ by more than a day
+        clashes[akey].append(bkey)
       for hd in hdl:
         for ed in edl:
           for md in mdl:
@@ -346,6 +346,11 @@ def findtime(fname='', fimage=None, verbose=1, allfields=0):
     for bkey in matches[akey].keys():
       outstring += " "*len(akey) + " = " + bkey + (matches[akey][bkey][0] + 
                    "   (" + str(round(matches[akey][bkey][1]*86400,2)) +" sec error)\n" )
+
+  for akey in jlist:
+    for bkey in clashes[akey]:
+      outstring += "Warning: %s=%9.5f and %s=%9.5s differ by more than one day!" % (akey, jdict[akey], bkey, jdict[bkey])
+      print "Warning: %s=%9.5f and %s=%9.5s differ by more than one day!" % (akey, jdict[akey], bkey, jdict[bkey])
 
   try:
     out = jdict[basefield]
@@ -417,6 +422,8 @@ if __name__ == '__main__':
 
   for f in files:
     if verbose:
+      print '\n',f,
+    else:
       print f,
     t,comments=findtime(fname=f,verbose=verbose)
     if t:
