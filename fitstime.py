@@ -128,7 +128,7 @@ def getdate(dates, verbose=1):
     return None,"None",outstring
 
 
-def gettime(times, verbose=1):
+def gettime(times, dates, verbose=1):
   """Extract the best UT time from the values in the FITS header. Return None if none provided"""
   outstring = ''
   if times:
@@ -141,6 +141,10 @@ def gettime(times, verbose=1):
       t2 = times[1][0][0]*3600 + times[1][0][1]*60 + times[1][0][2]  #in seconds
       if ((t1-t2) > 10) and (times[1][2]>0):       #If times differ by >10sec, and confidence>0
         outstring += timefield+" and "+times[1][1]+" disagree, using "+timefield+"="+parseing.ptuple(timeval,':') + '\n'
+        if times[1][1] == "DATEt":
+          for d in dates:
+            if d[1] == "DATEd":
+              d[2] = -d[2]
     return timeval,timefield,outstring
   else:
     if verbose:
@@ -222,10 +226,9 @@ def findtime(fname='', fimage=None, verbose=1, allfields=0):
       f = fimage
 
     yearguess = yearfromheaders(f.headers)    #Parse other header fields for year to break 2-digit-year degeneracy
-    outstring = ''
     hf = HeaderFields()
     (hf.dates,hf.times,hf.jds,hf.hjds,
-     hf.ras,hf.decs,hf.equinoxes,hf.exptimes) = parseing.parseheader(f.headers, f.comments, yearguess)
+     hf.ras,hf.decs,hf.equinoxes,hf.exptimes, outstring) = parseing.parseheader(f.headers, f.comments, yearguess)
 
     #parseheader returns lists of all values in each category (all dates, all ras, etc). Each list
     #is composed of tuples, being (value, field, confidence), where value is the number, field is 
@@ -242,10 +245,10 @@ def findtime(fname='', fimage=None, verbose=1, allfields=0):
       return None,"#Error opening or parseing FITS headers in file: "+fname+"\n"
 
   if verbose and fname:
-    outstring += "\nFinding time in: "+fname
+    outstring += "\nFinding time in: "+fname+"\n"
 
+  ftime,ftimefield,os2 = gettime(hf.times, hf.dates, verbose=verbose)
   fdate,fdatefield,os1 = getdate(hf.dates, verbose=verbose)
-  ftime,ftimefield,os2 = gettime(hf.times, verbose=verbose)
   fjd,fjdfield,os3 = getjd(hf.jds+hf.hjds, verbose=verbose)    
   fra,frafield,os4 = getra(hf.ras, verbose=verbose)
   fdec,fdecfield,os5 = getdec(hf.decs, verbose=verbose)
@@ -413,10 +416,11 @@ if __name__ == '__main__':
       files.append(ar)
 
   for f in files:
-    print f,
-    t=findtime(f,verbose)
+    if verbose:
+      print f,
+    t,comments=findtime(fname=f,verbose=verbose)
     if t:
-      print t
+      print comments,t
     else:
       print "***No Data***"
   
