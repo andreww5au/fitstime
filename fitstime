@@ -232,7 +232,7 @@ def findtime(fname=None, verbose=1):
     return None
 
 
-  if ((hdelta<1e-4) or (edelta<1e-4)) and verbose:
+  if ((abs(hdelta)<1e-4) or (edelta<1e-4)) and verbose:
     print "Heliocentric or exptime/2 offset is less than 0.0001 days, can't reliably compare JD offsets"
 
   if verbose:
