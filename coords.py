@@ -3,6 +3,8 @@
    Andrew Williams
 """
 
+version = "$Revision$"
+
 import math
 import string
 import time
