@@ -135,6 +135,7 @@ class FITS:
           elif bp==-32:
             type=Float32
           else:
+            self.data = None
             print "Unrecognised BITPIX value: ",bp
             return
 
@@ -150,6 +151,7 @@ class FITS:
           shape.reverse()  #take axes in opposite order
           fraw = self.file.read(flen)
           if len(fraw) <> flen:
+            self.data = None
             print "Expected %d bytes, read %d bytes." % (flen, len(fraw))
             return
           self.data=fromstring(fraw,type).byteswapped().astype(Float64)
