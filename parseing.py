@@ -64,7 +64,7 @@ def getdate(s=""):
     year=nums[0]
     if YearGuess:
       if year <> YearGuess:
-        parseoutput += "Best guess at year is "+YearGuess+", clashes with "+`year`+" from "+s
+        parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
       YearGuess = year
     return (year,month,day),1       #confident it's YMD
@@ -76,7 +76,7 @@ def getdate(s=""):
     year=nums[2]
     if YearGuess:
       if year <> YearGuess:
-        parseoutput += "Best guess at year is "+YearGuess+", clashes with "+`year`+" from "+s
+        parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
       YearGuess = year
     return (year,month,day),1       #confident it's DMY
@@ -93,7 +93,7 @@ def getdate(s=""):
       year=nums[0]
     if YearGuess:
       if year <> YearGuess:
-        parseoutput += "Best guess at year is "+YearGuess+", clashes with "+`year`+" from "+s
+        parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
       YearGuess = year
     return (year,month,day),1       #confident it's YMD
@@ -108,7 +108,7 @@ def getdate(s=""):
       year=nums[2]
     if YearGuess:
       if year <> YearGuess:
-        parseoutput += "Best guess at year is "+YearGuess+", clashes with "+`year`+" from "+s
+        parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
       YearGuess = year
     return (year,month,day),1       #confident it's DMY
@@ -206,14 +206,23 @@ def gettime(v=None):
     except AssertionError:
       return None,0            #Its a string, but not a time tuple
   else:
-    if v>24.0:
+    if v>86400:            #Probably a unix time stamp
+      print "Warning - UNIX timestamp in '"+`v`+"' not parsed."
+      parseoutput += "Warning - UNIX timestamp in '"+`v`+"' not parsed\n"
+      return None,0
+    elif v>24.0:           #definitely time in seconds since midnight
       tmp=coords.sexstring(v/3600.0, ' ')     #Convert from seconds into decimal hours
       h,m,s = tuple(map(float, string.split(tmp)))
       return (h,m,s),1          #Confident it's seconds since midnight
-    else:
-      tmp=coords.sexstring(v, ' ')    #It's probably decimal hours
+    elif int(v) <> v:           #<24 and it has a fractional part, almost certainly decimal hours
+      tmp=coords.sexstring(v, ' ') 
+      h,m,s = tuple(map(float, string.split(tmp)))
+      return (h,m,s),1         
+    else:                   #<24 but an integer, probably decimal hours but not sure
+      tmp=coords.sexstring(v, ' ') 
       h,m,s = tuple(map(float, string.split(tmp)))
       return (h,m,s),0          #Hard to be sure, it could be <24 seconds after midnight UT
+
 
 
 def getnumber(s=None, signed=1):
@@ -322,6 +331,9 @@ def parseheader(h=None,comments=None, yearguess=None):
   TMmSTART = gethf(h,'TM-START')
   UT       = geth(h,'UT')
   UTDATE   = geth(h,'UTDATE')
+  UTmDATE  = geth(h,'UT-DATE')
+  UTmSTART = geth(h,'UT-START')
+  UTmTIME  = geth(h,'UT-TIME')
   UTMIDDLE = geth(h,'UTMIDDLE')
   UTSHUT   = geth(h,'UTSHUT')
 
@@ -366,17 +378,6 @@ def parseheader(h=None,comments=None, yearguess=None):
 
 
 #Note that DATE and TIME fields are often only the file creation date/time, not image acquisition
-  if DATEd:
-    date,c = getdate(DATEd)
-    dates.append((date,"DATEd",c*20))
-  elif DATE:
-    date,c = getdate(DATE)
-    dates.append((date,"DATE",c*20))
-    if (date[2]-int(date[2]))>1e-9:       #Fractional day number
-      tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
-      h,m,s = tuple(map(float, string.split(tmp)))
-      times.append( ((h,m,s),"DATE",c*20) )
-
   if UTDATE:
     date,c = getdate(UTDATE)
     dates.append((date,"UTDATE",c*120))
@@ -384,6 +385,14 @@ def parseheader(h=None,comments=None, yearguess=None):
       tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
       h,m,s = tuple(map(float, string.split(tmp)))
       times.append( ((h,m,s),"UTDATE",c*100) )
+
+  if UTmDATE:
+    date,c = getdate(UTmDATE)
+    dates.append((date,"UT-DATE",c*120))
+    if (date[2]-int(date[2]))>1e-9:       #Fractional day number
+      tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
+      h,m,s = tuple(map(float, string.split(tmp)))
+      times.append( ((h,m,s),"UT-DATE",c*100) )
 
   if EPOCH:
     epy=None
@@ -405,6 +414,17 @@ def parseheader(h=None,comments=None, yearguess=None):
         equinoxes.append((epy,"EPOCH",100))
       else:         #It's probably a julian day number with an unknown offset, ignore it
         pass
+
+  if DATEd:
+    date,c = getdate(DATEd)
+    dates.append((date,"DATEd",c*20))
+  elif DATE:
+    date,c = getdate(DATE)
+    dates.append((date,"DATE",c*20))
+    if (date[2]-int(date[2]))>1e-9:       #Fractional day number
+      tmp=coords.sexstring((date[2]-int(date[2])*24), ' ')    #decimal days -> hours
+      h,m,s = tuple(map(float, string.split(tmp)))
+      times.append( ((h,m,s),"DATE",c*20) )
 
 #Times in the header
 
@@ -428,10 +448,20 @@ def parseheader(h=None,comments=None, yearguess=None):
     if tm:
       times.append((tm,"TM-START",c*150))
 
+  if UTmSTART:
+    tm,c=gettime(UTmSTART)
+    if tm:
+      times.append((tm,"UT-START",c*150))
+
+  if UTmTIME:
+    tm,c=gettime(UTmTIME)
+    if tm:
+      times.append((tm,"UT-TIME",c*150))
+
   if UTSHUT:
     tm,c=gettime(UTSHUT)
     if tm:
-      times.append((tm,"UTSHUT",c*100))
+      times.append((tm,"UTSHUT",c*50))
 
 #Note that DATE and TIME fields are often only the file creation date/time, not image acquisition
   if TIME:
