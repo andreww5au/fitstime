@@ -1,0 +1,109 @@
+#!/usr/bin/python
+
+import sys
+
+import fits
+import fitstime
+
+sys.stderr = sys.stdin
+
+usage = """FITS header time correction - Andrew Williams
+usage:  fixtime [-h|-help|--help]  OR
+        fixtime -n [filename] [filename] ...
+        fixtime -v [filename] [filename] ...
+        fixtime [filename] [filename] ...
+
+When called with one or more filenames on the command line, 
+fixtime will analyse the time header fields in the input file
+and calculate the heliocentric JD at exposure midpoint. This 
+will then be written back to the file in the PHJDMID header, 
+along with PEXP, PRA and PDEC fields in PLANET standard format.
+
+At the same time, the analysis output from the 'fixtime' code
+(see fixtime.py usage for details) will be appended to the 
+HISTORY comment block in the header.
+
+If the -n flag is given, the files will NOT be modified.
+Instead, the new header keys will be printed to standard out.
+
+If the '-f' flag is given, the header fields will be written
+to the FITS file even if the image already has PLANET timing
+headers. Values will be updated, the history will be appended.
+
+The '-f' flag is for verbose output as it processes the files,
+without this the program will produce NO output unless errors
+or warnings are encountered.
+"""
+
+args = sys.argv[1:]
+if not args:
+  print usage
+  sys.exit()
+
+files = []
+nowrite = 0
+verbose = 0
+force = 0
+for ar in args:
+  if ar == '-h' or ar == '-help' or ar == '--help':
+    print usage
+    sys.exit()
+  elif ar == '-v' or ar == '-V':
+    verbose = 1
+  elif ar == '-f' or ar == '-F':
+    force = 1
+  elif ar == '-n' or ar == '-N':
+    nowrite = 1
+    verbose = 1
+  else:
+    files.append(ar)
+
+for fname in files:
+  try:
+    f = fits.FITS(fname,'r')
+  except:
+    print "Error loading FITS file: " + fname
+    sys.excepthook(*sys.exc_info())
+    continue
+
+  if f.headers.has_key('PHJDMID') and not force:
+    print "File: " + fname + " already has PLANET headers, no change.\n"
+    continue
+
+  try:
+    t,s,hf = fitstime.findtime(fimage=f, verbose=1, allfields=1)
+  except:
+    print "Error determining time in file " + fname
+    sys.excepthook(*sys.exc_info())
+    continue
+
+  if t:    #A valid time was calculated for this image
+    exptime, efield, ecom = fitstime.getexptime(hf.exptimes, verbose=1)
+    ra, rafield, racom = fitstime.getra(hf.ras, verbose=1)
+    dec, decfield, deccom = fitstime.getdec(hf.decs, verbose=1)
+    f.headers['PHJDMID'] = `t`
+    f.comments['PHJDMID'] = "'fitstime v1.0.5, see history for details'"
+    f.headers['PEXP'] = `exptime`
+    f.comments['PEXP'] = "'=" + efield + ": " + ecom
+    f.headers['PRA'] = `ra`
+    f.comments['PRA'] = "'=" + rafield + ": " + racom
+    f.headers['PDEC'] = `dec`
+    f.comments['PDEC'] = "'=" + decfield + ": " + deccom
+    f.histlog(s)
+
+    if verbose:    
+      print "File: "+fname
+      print "PHJDMID = %19s / %-48s" % (f.headers['PHJDMID'], f.comments['PHJDMID'])
+      print "PEXP    = %19s / %-48s" % (f.headers['PEXP'], f.comments['PEXP'])
+      print "PRA     = %19s / %-48s" % (f.headers['PRA'], f.comments['PRA'])
+      print "PDEC    = %19s / %-48s" % (f.headers['PDEC'], f.comments['PDEC'])
+
+    if not nowrite:
+      f.save(fname)
+      if verbose:
+        print "Saved.\n"
+    else:
+      print "NOT saved.\n"
+  else:        #No time value returned
+    print "ERROR, no time value returned"
+
