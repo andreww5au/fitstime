@@ -1,9 +1,14 @@
 #!/usr/bin/python
 
+version = "$Revision$"
+
 import sys
 
 import fits
 import fitstime
+
+verstring = "fitstime:"+version+",parseing:"+fitstime.parseing.version+",fits:"+fits.version+",fitstime:"+fitstime.version
+print verstring
 
 sys.stderr = sys.stdin
 
