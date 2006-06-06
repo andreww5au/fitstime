@@ -330,6 +330,7 @@ def parseheader(h=None,comments=None, yearguess=None):
   TM_START = gethf(h,'TM_START')
   TMmSTART = gethf(h,'TM-START')
   UT       = geth(h,'UT')
+  UTCmOBS  = geth(h,'UTC-OBS')
   UTDATE   = geth(h,'UTDATE')
   UTmDATE  = geth(h,'UT-DATE')
   UTmSTART = geth(h,'UT-START')
@@ -437,6 +438,11 @@ def parseheader(h=None,comments=None, yearguess=None):
     tm,c=gettime(DATEmOBSt)
     if tm:
       times.append((tm,"DATE-OBSt",c*100))
+
+  if UTCmOBS:
+    tm,c=gettime(UTCmOBS)
+    if tm:
+      times.append((tm,"UTC-OBS",c*100))
 
   if TM_START:
     tm,c=gettime(TM_START)
