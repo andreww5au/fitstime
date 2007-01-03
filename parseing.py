@@ -66,7 +66,7 @@ def getdate(s=""):
       if year <> YearGuess:
         parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
-      YearGuess = year
+      YearGuess = int(year)
     return (year,month,day),1       #confident it's YMD
 
   if nums[2]>100:
@@ -78,7 +78,7 @@ def getdate(s=""):
       if year <> YearGuess:
         parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
-      YearGuess = year
+      YearGuess = int(year)
     return (year,month,day),1       #confident it's DMY
 
   #OK, at this point all three numbers are less than or equal to 100
@@ -95,7 +95,7 @@ def getdate(s=""):
       if year <> YearGuess:
         parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
-      YearGuess = year
+      YearGuess = int(year)
     return (year,month,day),1       #confident it's YMD
 
   if nums[2]>50:
@@ -110,7 +110,7 @@ def getdate(s=""):
       if year <> YearGuess:
         parseoutput += "Best guess at year is "+`YearGuess`+", clashes with "+`year`+" from "+s
     else:
-      YearGuess = year
+      YearGuess = int(year)
     return (year,month,day),1       #confident it's DMY
 
   #At this point, all numbers are <=50, so could conceivably be in either order. Try yearguess first
@@ -314,6 +314,7 @@ def parseheader(h=None,comments=None, yearguess=None):
   HJD      = gethf(h,'HJD')  
   ITIME    = gethf(h,'ITIME')
   JD       = gethf(h,'JD')
+  JDSTART  = gethf(h,'JDSTART')
   LJD      = gethf(h,'LJD')
   MJD      = gethf(h,'MJD')
   MJDmOBS  = gethf(h,'MJD-OBS')
@@ -495,6 +496,9 @@ def parseheader(h=None,comments=None, yearguess=None):
 
   if MJD:
     jds.append((MJD+2400000.5, "MJD", 80))
+
+  if JDSTART:
+    jds.append((JDSTART, "JDSTART", 100))
 
 #Heliocentric JD values in the header
 
