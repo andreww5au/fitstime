@@ -203,7 +203,7 @@ def yearfromheaders(hdic=None):
     return None
 
   jdl.sort()
-  jd = jdl[(len(jdl)-1) // 2]     #Take the middle value
+  jd = jdl[divmod(len(jdl)-1,2)[0]]     #Take the middle value
 
   y,m,d = coords.caldate(jd)
   return y
@@ -287,7 +287,7 @@ def findtime(fname='', fimage=None, verbose=1, allfields=0):
       return None, outstring
 
 
-  if (abs(hdelta<1e-4) or (edelta<1e-4)) and verbose:
+  if ( (abs(hdelta)<1e-4) or (edelta<1e-4)) and verbose:
     outstring += "Heliocentric or exptime/2 offset is less than 0.0001 days, can't reliably compare JD offsets\n"
 
   if verbose:
