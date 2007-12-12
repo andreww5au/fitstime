@@ -116,7 +116,7 @@ def getdate(s=""):
   #At this point, all numbers are <=50, so could conceivably be in either order. Try yearguess first
 
   if YearGuess:
-    yg = int(str(YearGuess)[-2:])
+    yg = int(str(int(YearGuess))[-2:])
     if (nums[0] == YearGuess) or (nums[0] == yg):
       assert (nums[2] >= 1) and (nums[2] <= mlen[month-1]), "YMD, Day invalid in '"+s+"'"
       year = YearGuess
