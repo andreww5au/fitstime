@@ -48,16 +48,22 @@ import types
 import time
 
 try:
-  import Numeric
-  from Numeric import *
+  import numarray
+  from numarray import *
+  Gotnumarray = 1
+  Gotnumeric = 0
   GotNum = 1
 except ImportError:
   try:
-    import numarray
-    from numarray import *
+    import Numeric
+    from Numeric import *
     GotNum = 1
+    Gotnumarray = 0
+    Gotnumeric = 1
   except:
-    GotNum=0
+    GotNum = 0
+    Gotnumarray = 0
+    Gotnumeric = 0
 
 #Define two lists of cards that will be saved in the specified order, one at
 #the start of the FITS headers, one at the end. The rest will be in
@@ -192,7 +198,7 @@ class FITS:
       for h in hlast:             #Write the final header cards
         f.write(_fh(self, h))
 
-      if self.data:
+      if self.data is not None:
         if bitpix == 0:             #Writing header only
           print "Warning: writing header only, no data, to "+fname
           return 0
@@ -219,6 +225,11 @@ class FITS:
         mi.append(self.data[i,amin[i]])
       dmin = min(mi)         #Lowest and highest data values in the image
       dmax = max(ma)
+      if dmin < -100:
+        dmin = -100
+      if dmax > 100000:
+        dmax = 100000    #Stop cosmic rays hits and other nasties from blatting 
+                         #dynamic range if converted to integer.
 
       if bitpix == 16:
         fitsmin = -32767.0
