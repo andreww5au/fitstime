@@ -21,6 +21,7 @@ usage = """FITS header time correction - Andrew Williams
 usage:  fixtime [-h|-help|--help]  OR
         fixtime -n [filename] [filename] ...
         fixtime -v [filename] [filename] ...
+        fixtime -iKEYNAME
         fixtime [filename] [filename] ...
 
 When called with one or more filenames on the command line, 
@@ -40,6 +41,13 @@ The -v flag gives verbose output, listing the header keys
 written instead of running silently (when the -v or -n flags
 are not given, ANY output implies a warning or error). 
 
+The -i flag, followed by a FITS key name, will parse the file
+exactly as usual, only ignoring the content of the specified
+FITS key, as if it were missing from the file. This is
+sometimes necessary if a particular key value is so broken as
+to cause the code to abort processing. Note that there is no
+space between the '-i' and the key name.
+
 Note that '-n' (no-write) implies verbose output, but the FITS
 files are not changed. '-v' turns on verbose outout explicitly,
 while the given files are being updated.
@@ -57,6 +65,7 @@ if not args:
   print usage
   sys.exit()
 
+ignorekeys = []
 files = []
 nowrite = 0
 verbose = 0
@@ -72,6 +81,8 @@ for ar in args:
   elif ar == '-n' or ar == '-N':
     nowrite = 1
     verbose = 1
+  elif ar[:2] == '-i':
+    ignorekeys.append(ar[2:])
   else:
     files.append(ar)
 
@@ -86,6 +97,12 @@ for fname in files:
   if f.headers.has_key('PHJDMID') and not force:
     print "File: " + fname + " already has PLANET headers, no change.\n"
     continue
+
+  for k in ignorekeys:    #Check this, may not be ideal since it'll delete the key from the output file. Copy the header dict instead?
+    try:
+      del(f.headers[k])
+    except KeyError:
+      pass
 
   try:
     vt,vs,hf = fitstime.findtime(fimage=f, verbose=1, allfields=1)
@@ -124,7 +141,7 @@ for fname in files:
         print "File: " + fname + "Had errors/warnings:"
         print s
 
-    if f.data:
+    if f.data is not None:
       if not nowrite:
         f.save(fname)
         if verbose:
