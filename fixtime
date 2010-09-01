@@ -58,6 +58,9 @@ headers. Values will be updated, the history will be appended.
 If the '-n' (no-write) flag is given in combination with '-f' 
 (force) then the files will be processed and times calculated,
 but new data will NOT be written back to the FITS files.
+
+Written by Andrew Williams, Perth Observatory
+<andrew@physics.uwa.edu.au>
 """
 
 args = sys.argv[1:]
