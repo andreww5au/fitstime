@@ -1,5 +1,13 @@
 #!/usr/bin/python
 
+"""FITS header time analysis - compares every combination of time, date, and JD
+   type header values, to with and without heliocentric correction and exposure
+   midpoint offset, to help determine what header fields to use.
+
+   Written by Andrew Williams, Perth Observatory
+   <andrew@physics.uwa.edu.au>
+"""
+
 version = "$Revision$"
 
 import sys
@@ -66,6 +74,10 @@ If you see from the analysis output that a different field (eg JD) produces
 midpoint-HJD times, or you wish to apply an offset, then specify this on the 
 command line. For example, if there is no date/time to get HJD_Calc, you might
 want to specify 'fitstime =MJD-OBS +hel +exp -0.5 *.fits > times.txt'.
+
+Written by Andrew Williams, Perth Observatory
+<andrew@physics.uwa.edu.au>
+
 """
 
 def cmpconf(a,b):
