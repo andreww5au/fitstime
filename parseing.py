@@ -1,4 +1,12 @@
 
+"""FITS header field parsing functions
+
+   Written by Andrew Williams, Perth Observatory
+   <andrew@physics.uwa.edu.au>
+"""
+
+
+
 version = "$Revision$"
 
 import coords
