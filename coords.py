@@ -1,6 +1,8 @@
 
 """PLANET Event name and date handling routines (Julian day, PJD, etc)
-   Andrew Williams
+   
+   Written by Andrew Williams, Perth Observatory
+   <andrew@physics.uwa.edu.au>
 """
 
 version = "$Revision$"
