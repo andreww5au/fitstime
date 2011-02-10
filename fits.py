@@ -67,6 +67,7 @@ for libname in trylibs:
       Gotnumpy = True
       Int16 = int16
       Int32 = int32
+      Float = float32
       Float32 = float32
       Float64 = float64
     except ImportError:
