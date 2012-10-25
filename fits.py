@@ -102,7 +102,70 @@ hfirst=['SIMPLE','BITPIX','NAXIS','NAXIS1','NAXIS2','EXTEND','COMMENT',
 hlast=['CCDTEMP','GAIN','FILENAME','BSCALE','BZERO','HIERARCH','HISTORY','END']
 
 
+class TABLE:
+  """FITS table class, used only as an element of a FITS object. Like a FITS
+     object, it has headers{}, comments{} and data attributes, but they refer
+     to the extension, not the primary header.
+  """
+  def __init__(self, fileob=None, tmode='list'):
+    self.file = fileob
+    self.headers={}
+    self.comments={}
+    self.finished=0
+    while not self.finished:
+      self.line=self.file.read(80)            #Read 80-byte cards
+      self.finished=_parseline(self,self.line)
 
+    try:
+      if ( (self.headers['XTENSION'][1:-1].strip()<>'TABLE') or 
+           (self.headers['BITPIX']<>'8') or
+           (self.headers['NAXIS']<>'2') ):
+        self.data = None
+        return           #Can't read non ASCII-TABLE extensions
+      tfields = int(self.headers['TFIELDS'])  #number of fields per row
+      naxis1 = int(self.headers['NAXIS1'])    #number of characters per row
+      naxis2 = int(self.headers['NAXIS2'])    #number of rows
+    except:
+      return   #Not the headers we were expecting for an ASCII table
+    
+    self.fields=[]
+    for t in range(1,tfields+1):
+      tn = self.headers['TTYPE%d' % t][1:-1].strip()
+      tcol = int(self.headers['TBCOL%d' % t])
+      tform = self.headers['TFORM%d' % t][1:-1].strip().split('.')[0]
+              #strip off quotes and spaces inside quotes, then seperate into
+              #bits before and after any decimal point, if present, and use
+              #only the characters before the decimal point. Eg A2, F4, etc
+      if tform[0] == 'A':
+        tfunc = str
+      elif tform[0] == 'I':
+        tfunc = int
+      else:
+        tfunc = float
+      self.fields.append( (tn,tcol,tfunc,int(tform[1:])) )
+
+    self.file.seek(2880*((self.file.tell()-1)/2880+1))
+
+    if tmode == 'list':
+      self.data = []
+      for r in range(naxis2):
+        row = self.file.read(naxis1)
+        rowd = []
+        for f in self.fields:
+          rowd.append( f[2](row[f[1]-1:f[1]-1+f[3]]) )
+        self.data.append(rowd)
+
+    elif tmode == 'dict':
+      self.data = {}
+      for r in range(naxis2):
+        row = self.file.read(naxis1)
+        kf = self.fields[0]
+        k = kf[2](row[kf[1]-1:kf[1]-1+kf[3]])
+        rowd = []
+        for f in self.fields[1:]:
+          rowd.append( f[2](row[f[1]-1:f[1]-1+f[3]]) )
+        self.data[k] = rowd
+    
 
 class FITS:
   """FITS image class. Creation accepts two parameters, filename and read mode.
@@ -115,9 +178,11 @@ class FITS:
 
      It also includes the 'save' method, for writing the image to a file, or
      just the header block if there is no data section.
+
+     Adding experimental code for simple FITS table reading (but not writing)
   """
 
-  def __init__(self, filename='', mode='r'): 
+  def __init__(self, filename='', mode='r', tmode='list'): 
                                   #mode is 'h' (headers) or 'r' (data+headers)
     self.filename=filename
     if mode=='h':          #Mode h opens file, reads headers, closes the file
@@ -158,7 +223,10 @@ class FITS:
         if not self.comments.has_key('HISTORY'):
           self.comments['HISTORY']=''            #Add a blank HISTORY card
 
-        if GotNum:         #If we've got Numeric, load the data section too.
+        if self.headers['NAXIS'] == '0':  #If there's no primary data array
+          self.file.seek(2880*((self.file.tell()-1)/2880+1))
+          self.table = TABLE(self.file, tmode=tmode)  #Assume it's a FITS table
+        elif GotNum:         #If we've got Numeric, load the data section too.
           self.file.seek(2880*((self.file.tell()-1)/2880+1))
           bp=int(self.headers['BITPIX'])
           if bp==16:
@@ -203,7 +271,6 @@ class FITS:
           self.data = self.file.read()
 
         self.file.close()
-
 
   def save(self, fname='/tmp/out.fits', bitpix=None):
     """Saves image to a given file name. The bitpix field has the same meaning
@@ -280,7 +347,9 @@ class FITS:
         ibscale = float(self.headers['BSCALE'])
         ibzero = float(self.headers['BZERO'])
       else:
-         rescale = True     #Force rescale if there are no scale values in header
+        ibscale = 1.0
+        ibzero = 0.0
+        rescale = True     #Force rescale if there are no scale values in header
 
       if ((dmin-ibzero)/ibscale < fitsmin) or ((dmax-ibzero)/ibscale > fitsmax):
         rescale = True      #Force rescale if physical values won't fit with old scale
@@ -353,6 +422,13 @@ class FITS:
     f.close()
     return 1
 
+  def saveraw(self, fname=''):
+    """Save the data section of the image (without headers) as a raw array of 32-bit floats.
+    """
+    if self.data and fname:
+      f = open(fname,'w')
+      f.write(self.data.astype(Float32).tostring())
+      f.close()
 
   def histlog(self,str):
     """Adds a HISTORY line containing 'str' to the image.
