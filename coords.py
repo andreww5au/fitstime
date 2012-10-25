@@ -45,7 +45,7 @@ def sexstring(value=0,sp=':'):
     outs = ''
   D = int(aval)
   M = int((aval-float(D))*60)
-  S = float(int((aval-float(D)-float(M)/60)*36000))/10
+  S = float(int((aval-float(D)-float(M)/60)*36000+0.5))/10
   outs = outs + str(D) + sp + str(M) + sp + str(S)
   if error:
     return ''
