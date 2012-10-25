@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-version = "$Revision$"
+version = "$Revision: 40 $"
 
 import sys
 
@@ -30,8 +30,8 @@ and calculate the heliocentric JD at exposure midpoint. This
 will then be written back to the file in the PHJDMID header, 
 along with PEXP, PRA and PDEC fields in PLANET standard format.
 
-At the same time, the analysis output from the 'fixtime' code
-(see fixtime.py usage for details) will be appended to the 
+At the same time, the analysis output from the 'fitstime' code
+(see fitstime.py usage for details) will be appended to the 
 HISTORY comment block in the header.
 
 If the -n flag is given, the files will NOT be modified.
@@ -46,7 +46,9 @@ exactly as usual, only ignoring the content of the specified
 FITS key, as if it were missing from the file. This is
 sometimes necessary if a particular key value is so broken as
 to cause the code to abort processing. Note that there is no
-space between the '-i' and the key name.
+space between the '-i' and the key name. WARNING - any FITS
+header keys ignored this way will NOT be written to the output
+file.
 
 Note that '-n' (no-write) implies verbose output, but the FITS
 files are not changed. '-v' turns on verbose outout explicitly,
